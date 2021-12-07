@@ -59,20 +59,41 @@ const step0 = () => {
   }
 
   function render(element, container) {
-    nextUnitOfWork = {
+    wipRoot = {
       dom: container,
       props: {
         children: [element]
       }
     }
+    nextUnitOfWork = wipRoot
   }
 
+  function commitRoot() {
+    commitWork(wipRoot.child)
+    wipRoot = null
+  }
+
+  function commitWork(fiber) {
+    if (!fiber) {
+      return
+    }
+    const domParent = fiber.parent.dom
+    domParent.appendChild(fiber.dom)
+    commitWork(fiber.child)
+    commitWork(fiber.sibling)
+  }
+
+  let wipRoot = null
   let nextUnitOfWork = null
   function workLoop(deadline) {
     let shouldYield = false
     while (nextUnitOfWork && !shouldYield) {
       nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
       shouldYield = deadline.timeRemaining() < 1
+    }
+
+    if (!nextUnitOfWork && wipRoot) {
+      commitRoot()
     }
     requestIdleCallback(workLoop)
   }
@@ -85,10 +106,11 @@ const step0 = () => {
       fiber.dom = createDom(fiber)
     }
 
+    // Remove because render real DOM at this point.
     // Appent DOM to parent
-    if (fiber.parent) {
-      fiber.parent.dom.appendChild(fiber.dom)
-    }
+    // if (fiber.parent) {
+    //   fiber.parent.dom.appendChild(fiber.dom)
+    // }
 
     const elements = fiber.props.children
     let index = 0
