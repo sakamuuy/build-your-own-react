@@ -111,6 +111,13 @@ const step0 = () => {
     if (!fiber) {
       return
     }
+
+    let domParentFiber = fiber.parent
+    while (!domParentFiber.dom) {
+      domParentFiber = domParentFiber.parent
+    }
+    const domParent = domParentFiber.dom
+
     const domParent = fiber.parent.dom
     if (fiber.effectTag === "PLACEMENT" && fiber.dom != null) {
       domParent.appendChild(fiber.dom)
@@ -144,6 +151,13 @@ const step0 = () => {
   requestIdleCallback(workLoop)
 
   function performUnitOfWork(fiber) {
+    const isFunctionComponent = fiber.type instanceof Function
+    if (isFunctionComponent) {
+      updateFunctionComponent(fiber)
+    } else {
+      updateHostComponent(fiber)
+    }
+
     // Create element's DOM
     if (!fiber.dom) {
       fiber.dom = createDom(fiber)
@@ -197,6 +211,18 @@ const step0 = () => {
         nextFiber = nextFiber.parent
       }
     }
+  }
+
+  function updateFunctionComponent(fiber) {
+    const children = [fiber.type(fiber.props)]
+    reconcileChildren(fiber, children)
+  }
+
+  function updateHostComponent(fiber) {
+    if (!fiber.dom) {
+      fiber.dom = createDom(fiber)
+    }
+    reconcileChildren(fiber, fiber.props.children)
   }
 
   function reconcileChildren(wipFiber, elements) {
