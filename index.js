@@ -43,7 +43,7 @@ const step0 = () => {
     }
   }
 
-  function render(element, container) {
+  function createDom(fiber) {
     const dom = element.type === "TEXT_ELEMENT"?
       document.createTextNode("") :
       document.createElement(element.type)
@@ -55,9 +55,16 @@ const step0 = () => {
         dom[name] = element.props[name]
       })
 
-    element.props.children.forEach(child => render(child, dom))
+    return dom
+  }
 
-    container.appendChild(dom)
+  function render(element, container) {
+    nextUnitOfWork = {
+      dom: container,
+      props: {
+        children: [element]
+      }
+    }
   }
 
   let nextUnitOfWork = null
@@ -72,8 +79,59 @@ const step0 = () => {
 
   requestIdleCallback(workLoop)
 
-  function performUnitOfWork(nextUnitOfWork) {
-    // Todo
+  function performUnitOfWork(fiber) {
+    // Create element's DOM
+    if (!fiber.dom) {
+      fiber.dom = createDom(fiber)
+    }
+
+    // Appent DOM to parent
+    if (fiber.parent) {
+      fiber.parent.dom.appendChild(fiber.dom)
+    }
+
+    const elements = fiber.props.children
+    let index = 0
+    // Prev sibling is elements that is rendered by prev below loop.
+    let prevSibling = null
+
+    // Do for each children elements.
+    while (index < elements.length) {
+      const element = elements[index]
+      // Create new fiber 
+      // The reason is newFiber.dom is null that adove createDOM()
+      const newFiber = {
+        type: element.type,
+        props: element.props,
+        parent: fiber,
+        dom: null
+      }
+
+      // 最初の子要素であればchild
+      if (index === 0) {
+        fiber.child = newFiber
+      }
+      // If index !== 0 , prevSibling is not null always.
+      else {
+        prevSibling.sibling = newFiber
+      }
+
+      // Prevsibling should be prev element
+      prevSibling = newFiber
+      index++
+
+      // 子要素、兄弟、おじの順で処理
+      if (fiber.child) {
+        return fiber.child
+      }
+      let nextFiber = fiber
+      while (nextFiber) {
+        if (nextFiber.sibling) {
+          return nextFiber.sibling
+        }
+        nextFiber = nextFiber.parent
+      }
+    }
   }
 
   const Didact = {
