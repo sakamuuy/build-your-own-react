@@ -60,6 +60,22 @@ const step0 = () => {
     container.appendChild(dom)
   }
 
+  let nextUnitOfWork = null
+  function workLoop(deadline) {
+    let shouldYield = false
+    while (nextUnitOfWork && !shouldYield) {
+      nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+      shouldYield = deadline.timeRemaining() < 1
+    }
+    requestIdleCallback(workLoop)
+  }
+
+  requestIdleCallback(workLoop)
+
+  function performUnitOfWork(nextUnitOfWork) {
+    // Todo
+  }
+
   const Didact = {
     createElement,
     render
@@ -72,4 +88,6 @@ const step0 = () => {
       <b />
     </div>
   )
+  const container = document.getElementById('root')
+  Didact.render(element, container)
 })()
