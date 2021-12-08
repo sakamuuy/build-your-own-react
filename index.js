@@ -26,7 +26,12 @@ function createTextElement(text) {
 // 最初にRenderPhaseが実行される。このフェーズは仮想DOMを作成する。
 // 次にCommitPhaseが実行される。RenderPhaseで作った仮想DOMに一致するように実DOMを更新する
 
+// ファイバーメモ
 // > Reactのファイバーは更新処理に優先度が付けられるようにするために設定された作業の構成単位のこと
+// ファイバーがやること
+// 1. 要素をDOMに追加する
+// 2. 子要素のためのファイバーを作成する
+// 3. 次の作業単位を選択する
 let nextUnitOfWork = null // 次のidleCallbackで呼ばれる処理
 let currentRoot = null // "DOMにコミットした最後のファイバーツリー"への参照
 let wipRoot = null
@@ -104,7 +109,7 @@ function updateHostComponent(fiber) {
 }
 
 /**
- *  今のFiberと前回処理したFiberを比較して必要な更新を実行する
+ *  子要素のファイバーを作成する
  * @param {*} wipFiber 今処理中のfiber
  * @param {*} elements 今処理中のfiberが持つ子要素
  */
@@ -112,16 +117,19 @@ function reconcileChildren(wipFiber, elements) {
   let index = 0
   // 最後にDOMを更新したFiber
   let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
+  // 下のwhileループで一つ前に処理したelement
   let prevSibling = null
 
   while (index < elements.length || oldfiber != null) {
+    // DOMにrenderingしたいもの
     const element = elements[index]
     let newFiber = null
     // 最後にDOMを更新したファイバーと同じ仮想DOMか判定
     const sameType = oldFiber && element && element.type == oldFiber.type
 
+    // 古いファイバーと新しい要素が同じタイプの場合、DOMノードを保持し、新しいpropsで更新
     if (sameType) {
-      // Propsだけ更新する
+      // 更新する
       newFiber = {
         type: oldFiber.type,
         props: element.props,
@@ -132,6 +140,7 @@ function reconcileChildren(wipFiber, elements) {
       }
     }
 
+    // タイプが異なり、新しい要素がある場合は、新しいDOMノードを作成する
     if (element && !sameType) {
       // DOMを追加
       newFiber = {
@@ -144,11 +153,32 @@ function reconcileChildren(wipFiber, elements) {
       }
     }
 
+    // タイプが異なり、古いファイバーがある場合は、古いノードを削除する
     if (oldFiber && !sameType) {
-      
+      // 削除
+      oldFiber.effectTag = "DELETION"
+      deletions.push(oldFiber)
     }
+
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling
+    }
+
+    if (index === 0) {
+      wipFiber.child = newFiber
+    } else if (element) {
+      prevSibling.sibling = newFiber
+    }
+
+    prevSibling = newFiber
+    index++
   }
 }
+
+
+// ------ DOM操作
+
+// -------------------
 
 
 // ----- workLoop
